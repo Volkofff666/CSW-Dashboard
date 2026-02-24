@@ -1,0 +1,27 @@
+{
+  "name": "conversational-sales-widget",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.17.0",
+  "scripts": {
+    "dev": "corepack pnpm -r --parallel --filter @csw/api --filter @csw/dashboard --filter @csw/widget dev",
+    "build": "corepack pnpm -r build",
+    "lint": "corepack pnpm -r lint",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test",
+    "format": "corepack pnpm -r format",
+    "db:generate": "corepack pnpm --filter @csw/api prisma:generate",
+    "db:migrate": "corepack pnpm --filter @csw/api prisma:migrate",
+    "db:seed": "corepack pnpm --filter @csw/api prisma:seed"
+  },
+  "devDependencies": {
+    "@csw/eslint-config": "workspace:*",
+    "@types/node": "^24.3.0",
+    "eslint": "^9.34.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.8",
+    "typescript-eslint": "^8.41.0",
+    "typescript": "^5.9.2"
+  }
+}

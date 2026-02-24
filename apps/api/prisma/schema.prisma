@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+model Account {
+  id            String         @id @default(cuid())
+  name          String
+  createdAt     DateTime       @default(now())
+  users         User[]
+  sites         Site[]
+  subscription  Subscription?
+}
+
+model User {
+  id           String    @id @default(cuid())
+  accountId    String
+  email        String    @unique
+  role         UserRole
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model Site {
+  id              String         @id @default(cuid())
+  accountId       String
+  domain          String
+  publicKey       String         @unique
+  createdAt       DateTime       @default(now())
+  account         Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  widgetConfig    WidgetConfig?
+  flows           Flow[]
+  conversations   Conversation[]
+  leads           Lead[]
+  integrations    Integration[]
+}
+
+model WidgetConfig {
+  id           String   @id @default(cuid())
+  siteId       String   @unique
+  settingsJson Json
+  updatedAt    DateTime @updatedAt
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model Flow {
+  id         String   @id @default(cuid())
+  siteId     String
+  name       String
+  graphJson  Json
+  isActive   Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+  site       Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id            String      @id @default(cuid())
+  siteId        String
+  visitorId     String
+  clientEventId String?
+  status        String      @default("NEW")
+  currentNodeId String?
+  metaJson      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  site          Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  leads         Lead[]
+  assignments   Assignment[]
+
+  @@unique([siteId, clientEventId])
+  @@index([siteId, visitorId])
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  senderType     String
+  text           String
+  payloadJson    Json?
+  createdAt      DateTime      @default(now())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id             String        @id @default(cuid())
+  siteId         String
+  conversationId String
+  name           String?
+  emailEnc       String?
+  phoneEnc       String?
+  fieldsJson     Json?
+  status         String
+  createdAt      DateTime      @default(now())
+  site           Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId])
+}
+
+model Assignment {
+  id               String        @id @default(cuid())
+  conversationId   String
+  operatorUserId   String
+  createdAt        DateTime      @default(now())
+  conversation     Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Integration {
+  id                  String    @id @default(cuid())
+  siteId              String
+  type                String
+  credentialsEncJson  Json
+  createdAt           DateTime  @default(now())
+  site                Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id               String    @id @default(cuid())
+  accountId        String    @unique
+  plan             String
+  status           String
+  stripeCustomerId String?
+  stripeSubId      String?
+  limitsJson       Json
+  account          Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}

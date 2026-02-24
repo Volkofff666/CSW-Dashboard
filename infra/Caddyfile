@@ -1,0 +1,22 @@
+{
+  email admin@nocto.online
+}
+
+nocto.online {
+  redir https://dashboard.nocto.online{uri}
+}
+
+api.nocto.online {
+  reverse_proxy 127.0.0.1:4000
+}
+
+dashboard.nocto.online {
+  reverse_proxy 127.0.0.1:3000
+}
+
+widget.nocto.online {
+  root * /opt/csw/apps/widget/dist
+  encode zstd gzip
+  file_server
+}
+
