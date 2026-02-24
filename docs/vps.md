@@ -2,6 +2,7 @@
 
 Server IP: `213.165.57.233`
 Domain: `nocto.online`
+Recommended project dir: `/opt/csw` (do not run from `/root/...` in production)
 
 ## 1) DNS records (required)
 Set A records to `213.165.57.233`:
@@ -29,15 +30,28 @@ sudo apt install -y curl git postgresql postgresql-contrib redis-server caddy
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs
-sudo corepack enable
+sudo corepack enable || true
+```
+
+If `corepack: command not found`, install pnpm globally:
+```bash
+sudo npm install -g pnpm
+pnpm -v
 ```
 
 ## 4) Clone and install
 ```bash
 git clone <YOUR_REPO_URL> /opt/csw
 cd /opt/csw
-corepack pnpm install
+if command -v corepack >/dev/null 2>&1; then corepack pnpm install; else pnpm install; fi
 cp .env.example .env
+```
+
+If you already cloned to `/root/CSW-Dashboard`, move it:
+```bash
+sudo mkdir -p /opt
+sudo mv /root/CSW-Dashboard /opt/csw
+cd /opt/csw
 ```
 
 Update `/opt/csw/.env`:
@@ -55,15 +69,21 @@ NEXT_PUBLIC_API_URL="https://api.nocto.online"
 sudo -u postgres psql -c "CREATE USER csw WITH PASSWORD 'strong_password';"
 sudo -u postgres psql -c "CREATE DATABASE csw OWNER csw;"
 cd /opt/csw
-corepack pnpm db:generate
-corepack pnpm db:migrate -- --name init_m1
-corepack pnpm db:seed
+if command -v corepack >/dev/null 2>&1; then
+  corepack pnpm db:generate
+  corepack pnpm db:migrate -- --name init_m1
+  corepack pnpm db:seed
+else
+  pnpm db:generate
+  pnpm db:migrate -- --name init_m1
+  pnpm db:seed
+fi
 ```
 
 ## 6) Build apps
 ```bash
 cd /opt/csw
-corepack pnpm build
+if command -v corepack >/dev/null 2>&1; then corepack pnpm build; else pnpm build; fi
 ```
 
 ## 7) Run API with systemd
@@ -147,4 +167,3 @@ sudo systemctl status caddy
 curl -s https://api.nocto.online/health
 curl -s "https://api.nocto.online/v1/widget/config?site_key=demo_site_key"
 ```
-
