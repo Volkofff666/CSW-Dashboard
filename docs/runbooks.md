@@ -14,6 +14,7 @@
 - Dashboard: `http://localhost:3000`
 - Widget playground: `http://localhost:5173`
 - Open widget playground and click the widget button to run flow via UI.
+- Reload page after 1-2 answers: widget should restore conversation history and current question.
 
 ## Widget API smoke test (M1)
 Use PowerShell:

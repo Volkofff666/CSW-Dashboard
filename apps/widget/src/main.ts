@@ -23,6 +23,22 @@ type SubmitAnswerResponse = {
   lead_id: string | null;
 };
 
+type ConversationMessage = {
+  id: string;
+  sender: string;
+  text: string;
+  created_at: string;
+};
+
+type ConversationStateResponse = {
+  conversation_id: string;
+  status: string;
+  current_node_id: string | null;
+  next_question: WidgetQuestion | null;
+  lead_id: string | null;
+  messages: ConversationMessage[];
+};
+
 type WidgetConfigResponse = {
   widget: {
     welcomeText?: string;
@@ -127,12 +143,44 @@ class CSWWidget {
       this.welcomeText = config.widget?.welcomeText ?? "Lead widget is ready";
       this.messages = config.flow?.preview_messages ?? [];
       this.currentQuestion = config.flow?.first_question ?? null;
+      if (this.conversationId) {
+        await this.restoreConversation(this.conversationId);
+      }
       this.render();
     } catch {
       this.state = "error";
       this.messages = ["Failed to load widget config from API"];
       this.render();
     }
+  }
+
+  private normalizeMessage(sender: string, text: string): string {
+    if (sender === "visitor") {
+      return `You: ${text}`;
+    }
+    if (sender === "operator") {
+      return `Operator: ${text}`;
+    }
+    if (sender === "system") {
+      return `System: ${text}`;
+    }
+    return text;
+  }
+
+  private async restoreConversation(conversationId: string): Promise<void> {
+    const response = await fetch(`${this.apiUrl}/v1/widget/conversations/${encodeURIComponent(conversationId)}`);
+
+    if (!response.ok) {
+      localStorage.removeItem(CONVERSATION_KEY);
+      this.conversationId = null;
+      return;
+    }
+
+    const payload = (await response.json()) as ConversationStateResponse;
+    this.messages = payload.messages.map((message) => this.normalizeMessage(message.sender, message.text));
+    this.currentQuestion = payload.next_question;
+    this.leadId = payload.lead_id;
+    this.state = payload.status === "COMPLETED" ? "completed" : "in_flow";
   }
 
   private async fetchConfig(): Promise<WidgetConfigResponse> {
@@ -168,7 +216,7 @@ class CSWWidget {
     const payload = (await response.json()) as StartConversationResponse;
     this.conversationId = payload.conversation_id;
     localStorage.setItem(CONVERSATION_KEY, this.conversationId);
-    this.messages = payload.bot_messages ?? this.messages;
+    this.messages = (payload.bot_messages ?? []).map((message) => this.normalizeMessage("bot", message));
     this.currentQuestion = payload.next_question;
     this.state = payload.status === "COMPLETED" ? "completed" : "in_flow";
     this.render();
@@ -180,6 +228,7 @@ class CSWWidget {
     }
 
     this.state = "loading";
+    this.messages.push(this.normalizeMessage("visitor", answer));
     this.render();
 
     const response = await fetch(`${this.apiUrl}/v1/widget/answers`, {
@@ -199,7 +248,7 @@ class CSWWidget {
     }
 
     const payload = (await response.json()) as SubmitAnswerResponse;
-    this.messages.push(...(payload.bot_messages ?? []));
+    this.messages.push(...(payload.bot_messages ?? []).map((message) => this.normalizeMessage("bot", message)));
     this.currentQuestion = payload.next_question;
     this.leadId = payload.lead_id;
     this.state = payload.status === "COMPLETED" ? "completed" : "in_flow";

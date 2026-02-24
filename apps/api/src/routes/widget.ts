@@ -18,6 +18,10 @@ type SubmitAnswerBody = {
   answer: string | number | boolean;
 };
 
+type ConversationParams = {
+  id: string;
+};
+
 const badRequest = (reply: FastifyReply, message: string) =>
   reply.code(400).send({ error: "bad_request", message });
 
@@ -106,6 +110,62 @@ export const registerWidgetRoutes = (app: FastifyInstance): void => {
               first_question: flowPreview.nextQuestion
             }
           : null
+      };
+    }
+  );
+
+  app.get<{ Params: ConversationParams }>(
+    "/v1/widget/conversations/:id",
+    async (request: FastifyRequest<{ Params: ConversationParams }>, reply) => {
+      const conversationId = request.params.id;
+
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId }
+      });
+
+      if (!conversation) {
+        return notFound(reply, "conversation not found");
+      }
+
+      const activeFlow = await prisma.flow.findFirst({
+        where: { siteId: conversation.siteId, isActive: true },
+        orderBy: { updatedAt: "desc" }
+      });
+
+      const flowGraph = activeFlow ? parseFlowGraph(activeFlow.graphJson) : null;
+      const currentNode = flowGraph ? getNodeById(flowGraph, conversation.currentNodeId) : null;
+
+      const messages = await prisma.message.findMany({
+        where: { conversationId: conversation.id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          senderType: true,
+          text: true,
+          createdAt: true
+        }
+      });
+
+      const lead = await prisma.lead.findUnique({
+        where: { conversationId: conversation.id },
+        select: { id: true }
+      });
+
+      return {
+        conversation_id: conversation.id,
+        status: conversation.status,
+        current_node_id: conversation.currentNodeId,
+        next_question:
+          currentNode && currentNode.type === "question"
+            ? runLinearFlow(flowGraph!, currentNode.id).nextQuestion
+            : null,
+        lead_id: lead?.id ?? null,
+        messages: messages.map((message) => ({
+          id: message.id,
+          sender: message.senderType,
+          text: message.text,
+          created_at: message.createdAt.toISOString()
+        }))
       };
     }
   );

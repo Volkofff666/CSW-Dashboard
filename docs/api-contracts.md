@@ -2,6 +2,7 @@
 
 ## Public (Widget)
 - `POST /v1/widget/conversations`
+- `GET /v1/widget/conversations/:id`
 - `POST /v1/widget/messages`
 - `POST /v1/widget/answers`
 - `GET /v1/widget/config?site_key=...`
@@ -16,4 +17,3 @@
 ## System
 - `POST /v1/billing/stripe/webhook`
 - `GET /health`
-
